@@ -1,0 +1,4 @@
+{
+    "device_ble_name": "2-lvl-node",
+    "adv_interval_ms": 50
+}

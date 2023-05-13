@@ -1,0 +1,18 @@
+{
+    "wifi_ssid": "MyWiFiSSID",
+    "wifi_pass": "MyWiFiPassword",
+
+    "backend_comm_enable": false,
+    "backend_hostname": "192.168.1.176",
+    "backend_port": 8888,
+
+    "to_find_names": ["2-lvl-node-h1", "2-lvl-node-s1", "2-lvl-node-s2"],
+    "to_find_types": ["helmet", "shoe_sx", "shoe_dx"],
+
+    "ble_enable_debug_print": false,
+
+    "logger_enable": false,
+    "logger_enable_debug_print": false,
+
+    "main_enable_debug_print": true
+}
