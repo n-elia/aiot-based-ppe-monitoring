@@ -45,7 +45,7 @@ class Helmet(ProcessableEntity):
             return
         
         # Count of raw data in the last time window
-        # self._count_raw = None
+        self._count_raw = None
         # Buffer of averaged windowed data
         self._avg_buffer = WindowedCircularBuffer(
             max_size=50,
@@ -59,7 +59,7 @@ class Helmet(ProcessableEntity):
     def trigger_preprocessing(self):
         """Trigger the preprocessing of the raw data."""
         # Update the count of raw data in the last time window
-        # self._count_raw = self.raw_devices[0].get_count()
+        self._count_raw = self.raw_devices[0].get_count()
         # Add the last averaged window to the avg buffer
         self._avg_buffer.append(self.raw_devices[0].get_rssi()[0], time.ticks_ms())
 
@@ -120,7 +120,6 @@ class Shoes(ProcessableEntity):
         # Standard deviation of the averaged windowed data for both shoes
         self._avg_std_dev = None
         
-
     def check_raw_devices(self):
         """Check if the number of raw devices is correct."""
         # The Shoes class requires two raw devices
@@ -141,20 +140,40 @@ class Shoes(ProcessableEntity):
         """Trigger the preprocessing of the raw data."""
         # Update the count of raw data in the last time window
         self._count_raw = min(self.raw_devices[0].get_count(), self.raw_devices[1].get_count())
+        
         # Add the last averaged window to the avg buffer for the left shoe
-        self._avg_buffer_left.append(self.raw_devices[0].get_rssi()[0], time.ticks_ms())
+        temp = self.raw_devices[0].get_rssi()[0]
+        if temp is None:
+            pass
+        else:
+            self._avg_buffer_left.append(temp, time.ticks_ms())
         # Add the last averaged window to the avg buffer for the right shoe
-        self._avg_buffer_right.append(self.raw_devices[1].get_rssi()[0], time.ticks_ms())
+        temp = self.raw_devices[1].get_rssi()[0]
+        if temp is None:
+            pass
+        else:
+            self._avg_buffer_right.append(temp, time.ticks_ms())
+        
         # Compute the average of the two buffers above and add it to the avg buffer for both shoes
-        self._avg_buffer_both.append(
-            (self._avg_buffer_left.get_window_avg()[0]+self._avg_buffer_right.get_window_avg()[0])/2,
-            time.ticks_ms()
-            )
+        if self._avg_buffer_left.get_window_avg()[0] == None and self._avg_buffer_right.get_window_avg()[0] == None:
+            pass        
+        
+        elif self._avg_buffer_left.get_window_avg()[0] == None:
+            self._avg_buffer_both.append(self._avg_buffer_right.get_window_avg()[0], time.ticks_ms())
+            
+        elif self._avg_buffer_right.get_window_avg()[0] == None:
+            self._avg_buffer_both.append(self._avg_buffer_left.get_window_avg()[0], time.ticks_ms())
+            
+        else:
+            self._avg_buffer_both.append(
+                (self._avg_buffer_left.get_window_avg()[0]+self._avg_buffer_right.get_window_avg()[0])/2,
+                time.ticks_ms()
+                )
         
         # Update the variance of the averaged windowed data
-        # self._avg_variance = self._avg_buffer_both.get_window_variance()[0]
+        #self._avg_variance = self._avg_buffer_both.get_window_variance()[0]
         # Update the standard deviation of the averaged windowed data
-        # self._avg_std_dev = self._avg_buffer_both.get_window_std_dev()[0]
+        #self._avg_std_dev = self._avg_buffer_both.get_window_std_dev()[0]
 
     def get_statistics(self):
         """Return the statistics of the Shoes object.
@@ -170,7 +189,8 @@ class Shoes(ProcessableEntity):
 
 async def preprocessor_coro(
         dev_to_process: list(Level2Device), 
-        preprocessor_queue: Queue
+        preprocessor_queue: Queue,
+        processables: list
         ):
     """Preprocessor coroutine.
     
@@ -180,7 +200,7 @@ async def preprocessor_coro(
     shoes = Shoes()
     for dev in dev_to_process:
         if dev.get_type() == "helmet":
-            helmet = Helmet(raw_device=dev)
+            helmet = Helmet(raw_devices=[dev])
         elif dev.get_type() == "shoe_dx":
             shoes.add_raw_device(dev)
         elif dev.get_type() == "shoe_sx":
@@ -189,11 +209,11 @@ async def preprocessor_coro(
             print("preprocessor_coro: invalid device type")
             return
     
-    processables = [helmet, shoes]
+    processables.append(helmet)
+    processables.append(shoes)
 
     while True:
         dev_name = await preprocessor_queue.get()
-
         # Trigger the preprocessing for the processable entities that have the device with the given name
         for p in processables:
             if dev_name in p.raw_device_names:

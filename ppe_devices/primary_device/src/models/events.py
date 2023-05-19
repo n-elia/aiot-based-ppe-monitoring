@@ -91,3 +91,9 @@ class RssiNullEvent(RssiEvent):
 
     def __init__(self, dev_name, rssi, timestamp) -> None:
         super().__init__(dev_name, rssi, timestamp)
+        
+class RssiNotOkEvent(RssiEvent):
+    _type = "RSSI_NOT_OK"
+
+    def __init__(self, dev_name, rssi, timestamp) -> None:
+        super().__init__(dev_name, rssi, timestamp)

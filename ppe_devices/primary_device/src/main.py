@@ -9,6 +9,12 @@ from wifi_manager import WiFiManager
 
 from coroutines.ble import ble_coro
 from coroutines.peripherals.led import led_coro
+from coroutines.peripherals.button import button_coro
+
+from coroutines.peripherals.buzzer import buzzer_coro
+from coroutines.preprocessor import preprocessor_coro
+from coroutines.processor import processor_coro
+from coroutines.postprocessor import postprocessor_coro
 from coroutines.logger import file_logger_coro
 from models.devices import Level2Device, check_device_types
 
@@ -25,34 +31,37 @@ async def main_loop(cfg_dict: dict, i2c_instance: SoftI2C):
     '''
     coro_handles = []
 
+    botton = False
+    
+    processables = []
+    
+    #Create a Queue for events buzzer
+    buzzer_q = Queue(maxsize=10)
+
     # Create a Queue for events led
     led_q = Queue(maxsize=10)
+    
+    # Create a Queue for events display
+    display_q = Queue(maxsize=10)    
+    
     # Create a Queue for logger events
     logger_q = Queue(maxsize=20)
+    
     # Create a Queue for the preprocessor coroutine
     preprocessor_q = Queue(maxsize=10)
 
+    # Create a Queue for the processor coroutine
+    processor_q = Queue(maxsize=10)
+
     # Create 2nd level device objects
     level_2_devices = []
+    
     for dev_name, dev_type in zip(cfg_dict["to_find_names"], cfg_dict["to_find_types"]):
         level_2_devices.append(Level2Device(name=dev_name, dev_type=dev_type))
+    
     if not check_device_types(level_2_devices):
         print("main_loop: Error: device types are not valid.")
         sys.exit()
-
-    # Create Buzzer task
-    # buzzer_coro_handle = uasyncio.create_task(buzzer_coro(
-    #     outgoing_buzzer_queue=buzzer_q,
-    #     dev_to_process=level_2_devices
-    # ))
-    # coro_handles.append(buzzer_coro_handle)
-
-    # Create Led output processor task
-    led_coro_handle = uasyncio.create_task(led_coro(
-        outgoing_led_queue=led_q,
-        dev_to_process=level_2_devices
-    ))
-    coro_handles.append(led_coro_handle)
 
     # Create BLE scan task
     ble_coro_handle = uasyncio.create_task(ble_coro(
@@ -63,6 +72,55 @@ async def main_loop(cfg_dict: dict, i2c_instance: SoftI2C):
         preprocessor_queue=preprocessor_q
     ))
     coro_handles.append(ble_coro_handle)
+
+    preprocessor_coro_handle = uasyncio.create_task(preprocessor_coro(
+        dev_to_process=level_2_devices,
+        preprocessor_queue=preprocessor_q,
+        processables= processables
+
+    ))
+    coro_handles.append(preprocessor_coro_handle)
+    
+    processor_coro_handle = uasyncio.create_task(processor_coro(
+        processor_queue=processor_q,
+        debug_prints=cfg["main_enable_debug_print"],
+        processables=processables
+
+    ))
+    coro_handles.append(processor_coro_handle)
+    
+    postprocessor_coro_handle = uasyncio.create_task(postprocessor_coro(
+        processor_queue=processor_q,
+        outgoing_led_queue=led_q,
+        outgoing_buzzer_queue=buzzer_q,
+        button=botton,
+        debug_prints=cfg["main_enable_debug_print"]
+
+    ))
+    coro_handles.append(postprocessor_coro_handle)
+    
+    # Create Buzzer task
+    buzzer_coro_handle = uasyncio.create_task(buzzer_coro(
+        outgoing_buzzer_queue=buzzer_q,
+        dev_to_process=level_2_devices,
+        debug_prints=cfg["main_enable_debug_print"]
+    ))
+    coro_handles.append(buzzer_coro_handle)
+
+    # Create Led output
+    led_coro_handle = uasyncio.create_task(led_coro(
+        outgoing_led_queue=led_q,
+        dev_to_process=level_2_devices,
+        debug_prints=cfg["main_enable_debug_print"]
+    ))
+    coro_handles.append(led_coro_handle)
+    
+    # Create button output
+    button_coro_handle = uasyncio.create_task(button_coro(
+        button=botton,
+        debug_prints=cfg["main_enable_debug_print"]
+    ))
+    coro_handles.append(button_coro_handle)
 
     # Create backend communication task
     # backend_communication_coro_handle = uasyncio.create_task(backend_communication_coro(

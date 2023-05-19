@@ -96,6 +96,7 @@ class WindowedCircularBuffer(object):
     def get_window_avg(self):
         """Returns the average of the values in the last time window."""
         window_values = self.get_window_values()
+
         window_values_len = len(window_values)
 
         if window_values_len == 0:

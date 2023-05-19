@@ -33,6 +33,7 @@ class BLEManager:
         if self._debug_prints:
             print("BLEManager: devices to be found: ", self._to_find_names)
 
+
     async def scan(self):
         async with aioble.scan(0, interval_us=30000, window_us=30000, active=True) as scanner:
             async for result in scanner:
@@ -53,7 +54,7 @@ class BLEManager:
                     if self._logger_queue is not None:
                         await self._logger_queue.put(f"{time.time_ns()},{dev_name},{dev_rssi}")
                         await uasyncio.sleep(0)
-                    self._preprocessor_q.put(dev_name)
+                    await self._preprocessor_q.put(dev_name)
                     # TODO - Check if this is needed
                     await uasyncio.sleep(0)
         print("BLEManager: scan cycle terminated.")

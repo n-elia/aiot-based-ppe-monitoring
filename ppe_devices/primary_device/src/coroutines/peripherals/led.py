@@ -38,7 +38,7 @@ class TinyS3Led:
 
 async def led_coro(outgoing_led_queue: Queue, dev_to_process: list(Level2Device), debug_prints: bool = False):
     if os.uname()[4].startswith('TinyS3'):
-        print("led_coro: TinyS3 detected")
+        # print("led_coro: TinyS3 detected")
         led = TinyS3Led()
 
         # Show startup LED for 6s
@@ -48,20 +48,12 @@ async def led_coro(outgoing_led_queue: Queue, dev_to_process: list(Level2Device)
         while True:
             e = await outgoing_led_queue.get()
 
-            # Analyze the Level 2 Devices last events and count
-            count_rssi_ok_event = sum(1 for dev in dev_to_process if dev.get_last_event_type() == events.RssiOkEvent)
-            count_rssi_low_event = sum(1 for dev in dev_to_process if dev.get_last_event_type() == events.RssiLowEvent)
-            count_rssi_obs_event = sum(1 for dev in dev_to_process if dev.get_last_event_type() == events.RssiObsoleteEvent)
-
-            if count_rssi_ok_event == len(dev_to_process):
-                if debug_prints: print("led_coro: all 2nd level nodes RSSI values are OK")
+            if e == 0:
+                if debug_prints: print("led_coro: OK")
                 led.green()
-            elif count_rssi_obs_event > 0:
+            elif e == 1:
                 if debug_prints: print("led_coro: at least one 2nd level node RSSI value is obsolete")
                 led.red()
-            elif count_rssi_low_event > 0:
-                if debug_prints: print("led_coro: at least one 2nd level node RSSI value is low")
-                led.orange()
 
     else:
         print("led_coro: LED not implemented yet for this board")
